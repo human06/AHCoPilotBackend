@@ -8,6 +8,7 @@ using AHCoPilotBackend.Interfaces;
 using AHCoPilotBackend.Services;
 using System.Text.Json;
 using AHCoPilotBackend.Models;
+using Octokit.Internal;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,7 +66,19 @@ app.MapPost("/", async (
 {
     try
     {
-        // Validate input
+
+        // check the body 
+        //string rawBody;
+        //using (var reader = new StreamReader(request.Body))
+        //{
+        //    rawBody = await reader.ReadToEndAsync();
+        //}
+        //Console.WriteLine(rawBody);
+
+
+        //var payload = JsonSerializer.Deserialize<Payload>(rawBody);
+
+
         if (string.IsNullOrEmpty(githubToken))
         {
             return Results.BadRequest(new { error = "GitHub token is required" });
@@ -89,11 +102,41 @@ app.MapPost("/", async (
             Content = $"Use user name in the conversation, which is @{user.Name}"
         });
 
+        var lastMessage = payload.Messages.Last();
+        if (lastMessage.copilot_references != null && lastMessage.copilot_references.Count > 0)
+        {
+            var highlightedSnippets = lastMessage.copilot_references
+                .Where(f => f.type != null && f.type.Contains("client.selection", StringComparison.OrdinalIgnoreCase))
+                .Select(f => $"File: {f.id}\nHighlighted code:\n{f.data.content}")
+                .ToList();
+
+            if (highlightedSnippets.Count() > 0)
+            {
+                systemPrompt += "\n\nThe user has highlighted the following code:\n" + string.Join("\n\n", highlightedSnippets);
+            }
+
+
+
+            var attachedFile = lastMessage.copilot_references
+               .Where(f => f.type != null && f.type.Contains("\"client.file\"", StringComparison.OrdinalIgnoreCase))
+               .Select(f => $"File: {f.id}\n Attached File:\n{f.data.content}")
+               .ToList();
+
+            if (attachedFile.Count() > 0)
+            {
+                systemPrompt += "\n\nThe user has attached the following file:\n" + string.Join("\n\n", attachedFile);
+            }
+        }
+
         payload.Messages.Insert(0, new Message
         {
             Role = "system",
             Content = systemPrompt
         });
+
+
+
+
 
         payload.Stream = true;
 

@@ -15,6 +15,8 @@
             - Offering concise, actionable, and context-aware suggestions tailored to AI scenarios in Azure.
             
             Respond only with Bicep code or relevant Azure infrastructure advice unless otherwise requested.
+
+            User can highlight some code or upload a file and ask for help.
             """;
         public string AppName { get; set; } = "AH-Enablement-CoPilot";
         public string CopilotApiUrl { get; set; } = "https://api.githubcopilot.com/chat/completions";
